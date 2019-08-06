@@ -126,7 +126,7 @@ def create_layout(app):
                     html.Div(
                         [
                             html.H3(
-                                "t-SNE Explorer",
+                                "Itai Walk",
                                 className="header_title",
                                 id="app-title",
                             )
@@ -178,7 +178,7 @@ def create_layout(app):
                                             },
                                         ],
                                         placeholder="Select a dataset",
-                                        value="mnist_3000",
+                                        value="wikipedia_3000",
                                     ),
                                     NamedSlider(
                                         name="Number of Iterations",
@@ -186,7 +186,7 @@ def create_layout(app):
                                         min=250,
                                         max=1000,
                                         step=None,
-                                        val=500,
+                                        val=250,
                                         marks={
                                             i: str(i) for i in [250, 500, 750, 1000]
                                         },
@@ -197,7 +197,7 @@ def create_layout(app):
                                         min=3,
                                         max=100,
                                         step=None,
-                                        val=30,
+                                        val=3,
                                         marks={i: str(i) for i in [3, 10, 30, 50, 100]},
                                     ),
                                     NamedSlider(
@@ -206,7 +206,7 @@ def create_layout(app):
                                         min=25,
                                         max=100,
                                         step=None,
-                                        val=50,
+                                        val=25,
                                         marks={i: str(i) for i in [25, 50, 100]},
                                     ),
                                     NamedSlider(
@@ -215,7 +215,7 @@ def create_layout(app):
                                         min=10,
                                         max=200,
                                         step=None,
-                                        val=100,
+                                        val=10,
                                         marks={i: str(i) for i in [10, 50, 100, 200]},
                                     ),
                                     html.Div(
@@ -572,20 +572,24 @@ def demo_callbacks(app):
 
                 # vector.apply takes compare_pd function as the first argument
                 distance_map = vector.apply(compare_pd, axis=1)
-                nearest_neighbors = distance_map.sort_values()[1:6]
+                nearest_neighbors = distance_map.sort_values()[1:11].iloc[::-1]
+                products_titles = [str[0:25] for str in nearest_neighbors.index]
 
                 trace = go.Bar(
                     x=nearest_neighbors.values,
-                    y=nearest_neighbors.index,
+                    y=products_titles,
+                    hovertext=nearest_neighbors.index,
                     width=0.5,
                     orientation="h",
                     marker=dict(color="rgb(50, 102, 193)"),
                 )
 
                 layout = go.Layout(
-                    title=f'5 nearest neighbors of "{selected_word}"',
+                    width=400,
+                    title=f'10 nearest neighbors',#' "{selected_word}"',
                     xaxis=dict(title="Euclidean Distance"),
-                    margin=go.layout.Margin(l=60, r=60, t=35, b=35),
+                    #yaxis=dict(title="Product"),
+                    margin=go.layout.Margin(l=250, r=50, t=35, b=35),
                 )
 
                 fig = go.Figure(data=[trace], layout=layout)

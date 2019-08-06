@@ -1,4 +1,4 @@
-### How to use the demo app
+### Itai How to use the demo app
 
 To get started, choose a dataset you want to visualize. Here are the image datasets available:
 
