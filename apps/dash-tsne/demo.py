@@ -180,6 +180,21 @@ def create_layout(app):
                                         placeholder="Select a dataset",
                                         value="wikipedia_3000",
                                     ),
+                                    NamedInlineRadioItems(
+                                        name="Popularity based size",
+                                        short="pop-display-mode",
+                                        options=[
+                                            {
+                                                "label": " Regular",
+                                                "value": "regular",
+                                            },
+                                            {
+                                                "label": " Size by popularity",
+                                                "value": "pop",
+                                            },
+                                        ],
+                                        val="regular",
+                                    ),
                                     NamedSlider(
                                         name="Number of Iterations",
                                         short="iterations",
@@ -333,7 +348,6 @@ def demo_callbacks(app):
 
                 # Select those neighbors from the embedding_df
                 embedding_df = embedding_df.loc[neighbors_idx]
-                embedding_df
 
 
             scatter = [go.Scatter3d(
@@ -353,6 +367,7 @@ def demo_callbacks(app):
 
             return figure
         except KeyError as error:
+            print(selected_word)
             print(error)
             raise PreventUpdate
 
@@ -570,6 +585,9 @@ def demo_callbacks(app):
                 # Get the nearest neighbors indices using Euclidean distance
                 vector = data_dict[dataset].set_index("0")
                 selected_vec = vector.loc[selected_word]
+                # very ugly workaround - just until we will have unique product Id
+                if isinstance(selected_vec, pd.core.frame.DataFrame):
+                    selected_vec= selected_vec.iloc[0,:]
 
                 def compare_pd(vector):
                     return spatial_distance.euclidean(vector, selected_vec)
