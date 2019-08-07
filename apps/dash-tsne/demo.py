@@ -312,6 +312,7 @@ def demo_callbacks(app):
             if wordemb_display_mode == "regular":
                 plot_mode = "markers"
 
+
             # Nearest Neighbors displays only the 200 nearest neighbors of the selected_word, in text rather than circles
             elif wordemb_display_mode == "neighbors":
                 if not selected_word:
@@ -328,24 +329,27 @@ def demo_callbacks(app):
 
                 # vector.apply takes compare_pd function as the first argument
                 distance_map = vector.apply(compare_pd, axis=1)
-                neighbors_idx = distance_map.sort_values()[:100].index
+                neighbors_idx = distance_map.sort_values()[:50].index
 
                 # Select those neighbors from the embedding_df
                 embedding_df = embedding_df.loc[neighbors_idx]
+                embedding_df
 
-            scatter = go.Scatter3d(
-                name=str(embedding_df.index),
-                x=embedding_df["x"],
-                y=embedding_df["y"],
-                z=embedding_df["z"],
-                text=embedding_df.index,
+
+            scatter = [go.Scatter3d(
+                name=i,
+                x=embedding_df[embedding_df["category"] == i]["x"],
+                y=embedding_df[embedding_df["category"] == i]["y"],
+                z=embedding_df[embedding_df["category"] == i]["z"],
+                text=[str[0:min(20, len(str))] for str in embedding_df[embedding_df["category"] == i].index], #embedding_df.index,#
+                hovertext= embedding_df[embedding_df["category"] == i].index,
                 textposition="middle center",
-                showlegend=False,
+                showlegend=True,
                 mode=plot_mode,
-                marker=dict(size=3, color="#3266c1", symbol="circle"),
-            )
+                marker=dict(size=3, symbol="circle"),
+            ) for i in embedding_df["category"].unique()]
 
-            figure = go.Figure(data=[scatter], layout=layout)
+            figure = go.Figure(data= scatter, layout=layout)
 
             return figure
         except KeyError as error:
@@ -560,7 +564,7 @@ def demo_callbacks(app):
     )
     def display_click_word_neighbors(clickData, dataset):
         if dataset in WORD_EMBEDDINGS and clickData:
-            selected_word = clickData["points"][0]["text"]
+            selected_word = clickData["points"][0]["hovertext"]
 
             try:
                 # Get the nearest neighbors indices using Euclidean distance
@@ -573,7 +577,7 @@ def demo_callbacks(app):
                 # vector.apply takes compare_pd function as the first argument
                 distance_map = vector.apply(compare_pd, axis=1)
                 nearest_neighbors = distance_map.sort_values()[1:11].iloc[::-1]
-                products_titles = [str[0:25] for str in nearest_neighbors.index]
+                products_titles = [str[0:min(20, len(str))] for str in nearest_neighbors.index]
 
                 trace = go.Bar(
                     x=nearest_neighbors.values,
@@ -586,8 +590,9 @@ def demo_callbacks(app):
 
                 layout = go.Layout(
                     width=400,
-                    title=f'10 nearest neighbors',#' "{selected_word}"',
+                    title=f'20 nearest neighbors {selected_word}',
                     xaxis=dict(title="Euclidean Distance"),
+                    barmode="overlay",
                     #yaxis=dict(title="Product"),
                     margin=go.layout.Margin(l=250, r=50, t=35, b=35),
                 )
@@ -620,4 +625,4 @@ def demo_callbacks(app):
             if clickData:
                 return None
             else:
-                return "Click a word on the plot to see its top 5 neighbors."
+                return "Click a word on the plot to see its top 10 neighbors."
