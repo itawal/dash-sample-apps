@@ -182,7 +182,7 @@ def create_layout(app):
                                     ),
                                     NamedInlineRadioItems(
                                         name="Popularity based size",
-                                        short="pop-display-mode",
+                                        short="popsize-display-mode",
                                         options=[
                                             {
                                                 "label": " Regular",
@@ -319,10 +319,13 @@ def demo_callbacks(app):
 
     # Scatter Plot of the t-SNE datasets
     def generate_figure_word_vec(
-        embedding_df, layout, wordemb_display_mode, selected_word, dataset
+        embedding_df, layout, wordemb_display_mode, popsize_display_mode, selected_word, dataset
     ):
 
         try:
+            point_size= 3
+            if not popsize_display_mode == "regular":
+                point_size = embedding_df["popularity"].apply(np.sqrt)
             # Regular displays the full scatter plot with only circles
             if wordemb_display_mode == "regular":
                 plot_mode = "markers"
@@ -360,7 +363,7 @@ def demo_callbacks(app):
                 textposition="middle center",
                 showlegend=True,
                 mode=plot_mode,
-                marker=dict(size=3, symbol="circle"),
+                marker=dict(size=point_size, symbol="circle"),
             ) for i in embedding_df["category"].unique()]
 
             figure = go.Figure(data= scatter, layout=layout)
@@ -440,6 +443,7 @@ def demo_callbacks(app):
             Input("slider-learning-rate", "value"),
             Input("dropdown-word-selected", "value"),
             Input("radio-wordemb-display-mode", "value"),
+            Input("radio-popsize-display-mode", "value")
         ],
     )
     def display_3d_scatter_plot(
@@ -450,6 +454,7 @@ def demo_callbacks(app):
         learning_rate,
         selected_word,
         wordemb_display_mode,
+        popsize_display_mode
     ):
         if dataset:
             path = f"demo_embeddings/{dataset}/iterations_{iterations}/perplexity_{perplexity}/pca_{pca_dim}/learning_rate_{learning_rate}"
@@ -498,6 +503,7 @@ def demo_callbacks(app):
                     embedding_df=embedding_df,
                     layout=layout,
                     wordemb_display_mode=wordemb_display_mode,
+                    popsize_display_mode= popsize_display_mode,
                     selected_word=selected_word,
                     dataset=dataset,
                 )
@@ -616,6 +622,8 @@ def demo_callbacks(app):
                 )
 
                 fig = go.Figure(data=[trace], layout=layout)
+
+
 
                 return dcc.Graph(
                     id="graph-bar-nearest-neighbors-word",
