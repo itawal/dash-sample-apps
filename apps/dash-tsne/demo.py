@@ -527,56 +527,23 @@ def demo_callbacks(app):
     def display_click_image(
         clickData, dataset, iterations, perplexity, pca_dim, learning_rate
     ):
-        if dataset in IMAGE_DATASETS and clickData:
-            # Load the same dataset as the one displayed
+        if dataset in WORD_EMBEDDINGS and clickData:
+            selected_word = clickData["points"][0]["hovertext"]
 
             try:
-                data_url = [
-                    "demo_embeddings",
-                    str(dataset),
-                    "iterations_" + str(iterations),
-                    "perplexity_" + str(perplexity),
-                    "pca_" + str(pca_dim),
-                    "learning_rate_" + str(learning_rate),
-                    "data.csv",
-                ]
-
-                full_path = PATH.joinpath(*data_url)
-                embedding_df = pd.read_csv(full_path, encoding="ISO-8859-1")
-
-            except FileNotFoundError as error:
-                print(
-                    error,
-                    "\nThe dataset was not found. Please generate it using generate_demo_embeddings.py",
-                )
-                return
-
-            # Convert the point clicked into float64 numpy array
-            click_point_np = np.array(
-                [clickData["points"][0][i] for i in ["x", "y", "z"]]
-            ).astype(np.float64)
-            # Create a boolean mask of the point clicked, truth value exists at only one row
-            bool_mask_click = (
-                embedding_df.loc[:, "x":"z"].eq(click_point_np).all(axis=1)
-            )
-            # Retrieve the index of the point clicked, given it is present in the set
-            if bool_mask_click.any():
-                clicked_idx = embedding_df[bool_mask_click].index[0]
-
-                # Retrieve the image corresponding to the index
-                image_vector = data_dict[dataset].iloc[clicked_idx]
-                if dataset == "cifar_gray_3000":
-                    image_np = image_vector.values.reshape(32, 32).astype(np.float64)
-                else:
-                    image_np = image_vector.values.reshape(28, 28).astype(np.float64)
-
-                # Encode image into base 64
-                image_b64 = numpy_to_b64(image_np)
-
-                return html.Img(
-                    src="data:image/png;base64, " + image_b64,
-                    style={"height": "25vh", "display": "block", "margin": "auto"},
-                )
+                # Get the nearest neighbors indices using Euclidean distance
+                vector = data_dict[dataset].set_index("0")
+                selected_vec = vector.loc[selected_word]
+                # very ugly workaround - just until we will have unique product Id
+                if isinstance(selected_vec, pd.core.frame.DataFrame):
+                    selected_vec= selected_vec.iloc[0,:]
+                return  html.H4(
+                                selected_word,
+                                className="header_title",
+                                id="app-title",
+                            )
+            except KeyError as error:
+                raise PreventUpdate
         return None
 
     @app.callback(
