@@ -265,7 +265,17 @@ def create_layout(app):
                                             "font-weight": "bold",
                                         },
                                     ),
-                                    html.Div(id="div-plot-click-image"),
+                                    html.Div(
+                                        [
+                                        html.Div(id="div-plot-click-title"),
+                                            html.Img(
+                                                src=app.get_asset_url("dash-logo.png"),
+                                                className="logo",
+                                                id="xxx",
+                                            )
+
+                                        ]
+                                    ),
                                     html.Div(id="div-plot-click-wordemb"),
                                 ],
                             )
@@ -275,6 +285,15 @@ def create_layout(app):
             ),
         ],
     )
+
+def get_image_url(self, dataset, path):
+    data_url = [
+        "images",
+        str(dataset),
+        path,
+    ]
+    full_path = PATH.joinpath(*data_url)
+    return full_path
 
 
 def demo_callbacks(app):
@@ -316,7 +335,6 @@ def demo_callbacks(app):
             elif wordemb_display_mode == "neighbors_mode":
                 if not selected_word:
                     return go.Figure()
-
                 plot_mode = "text+markers"
 
                 # Get the nearest neighbors indices using Euclidean distance
@@ -491,13 +509,13 @@ def demo_callbacks(app):
             return figure
 
     @app.callback(
-        Output("div-plot-click-image", "children"),
+            Output("div-plot-click-title", "children"),
         [
             Input("graph-3d-plot-tsne", "clickData"),
             Input("dropdown-dataset", "value"),
-        ],
+        ]
     )
-    def display_click_image(
+    def display_click_title(
         clickData, dataset
     ):
         if dataset in WORD_EMBEDDINGS and clickData:
@@ -510,14 +528,64 @@ def demo_callbacks(app):
                 # very ugly workaround - just until we will have unique product Id
                 if isinstance(selected_vec, pd.core.frame.DataFrame):
                     selected_vec= selected_vec.iloc[0,:]
-                return  html.H4(
+                ###
+                path = f"images/{dataset}/"
+
+                data_url = [
+                    "images",
+                    str(dataset),
+                    "citta-logo.png",
+                ]
+                full_path = PATH.joinpath(*data_url)
+                return html.H4(
                                 selected_word,
                                 className="header_title",
                                 id="app-title",
-                            )
+                        )
+
             except KeyError as error:
                 raise PreventUpdate
         return None
+
+#redundant - should be mergred into one function with display_click_title, couldn;t figure out how to output two outputs
+    # @app.callback(
+    #         Output("div-plot-click-image", "children"),
+    #     [
+    #         Input("graph-3d-plot-tsne", "clickData"),
+    #         Input("dropdown-dataset", "value"),
+    #     ]
+    # )
+    # def display_click_image(
+    #     clickData, dataset
+    # ):
+    #     if dataset in WORD_EMBEDDINGS and clickData:
+    #         selected_word = clickData["points"][0]["hovertext"]
+    #
+    #         try:
+    #             # Get the nearest neighbors indices using Euclidean distance
+    #             vector = data_dict[dataset].set_index("0")
+    #             selected_vec = vector.loc[selected_word]
+    #             # very ugly workaround - just until we will have unique product Id
+    #             if isinstance(selected_vec, pd.core.frame.DataFrame):
+    #                 selected_vec= selected_vec.iloc[0,:]
+    #             ###
+    #             path = f"images/{dataset}/"
+    #
+    #             data_url = [
+    #                 "images",
+    #                 str(dataset),
+    #                 "citta-logo.png",
+    #             ]
+    #             full_path = PATH.joinpath(*data_url)
+    #             return html.Img(
+    #                         src=full_path ,
+    #                         style={"height": "25vh", "display": "block", "margin": "auto"},
+    #             )
+    #
+    #         except KeyError as error:
+    #             raise PreventUpdate
+    #     return None
+
 
     @app.callback(
         Output("div-plot-click-wordemb", "children"),
@@ -528,55 +596,52 @@ def demo_callbacks(app):
             selected_word = clickData["points"][0]["hovertext"]
 
             try:
-                # Get the nearest neighbors indices using Euclidean distance
-                vector = data_dict[dataset].set_index("0")
-                selected_vec = vector.loc[selected_word]
-                # very ugly workaround - just until we will have unique product Id
-                if isinstance(selected_vec, pd.core.frame.DataFrame):
-                    selected_vec= selected_vec.iloc[0,:]
-
-                def compare_pd(vector):
-                    return spatial_distance.euclidean(vector, selected_vec)
-
-                # vector.apply takes compare_pd function as the first argument
-                distance_map = vector.apply(compare_pd, axis=1)
-                num_of_neighbors = 10
-                nearest_neighbors = distance_map.sort_values()[1:(num_of_neighbors + 1)].iloc[::-1]
-                max_len_of_yaxis_str= 20
-                products_titles = [str[0:min(max_len_of_yaxis_str, len(str))] for str in nearest_neighbors.index]
-
-                trace = go.Bar(
-                    x=nearest_neighbors.values,
-                    y=products_titles,
-                    text= products_titles,
-                    hovertext=nearest_neighbors.index,
-                    width=0.5,
-                    orientation="h",
-                    marker=dict(color="rgb(50, 102, 193)"),
-                )
-
-                layout = go.Layout(
-                    width=400,
-                    title=f'{num_of_neighbors} nearest neighbors {selected_word}',
-                    xaxis=dict(title="Euclidean Distance"),
-                    barmode="overlay",
-                    #yaxis=dict(title="Product"),
-                    margin=go.layout.Margin(l=250, r=50, t=35, b=35),
-                )
-
-                fig = go.Figure(data=[trace], layout=layout)
-
-
-
-                return dcc.Graph(
-                    id="graph-bar-nearest-neighbors-word",
-                    figure=fig,
-                    style={"height": "25vh"},
-                    config={"displayModeBar": False},
-                )
+                return display_click_word_neighbours_with_word(dataset, selected_word)
             except KeyError as error:
                 raise PreventUpdate
         return None
+
+    def display_click_word_neighbours_with_word(dataset, selected_word):
+        # Get the nearest neighbors indices using Euclidean distance
+        vector = data_dict[dataset].set_index("0")
+        selected_vec = vector.loc[selected_word]
+        # very ugly workaround - just until we will have unique product Id
+        if isinstance(selected_vec, pd.core.frame.DataFrame):
+            selected_vec = selected_vec.iloc[0, :]
+
+        def compare_pd(vector):
+            return spatial_distance.euclidean(vector, selected_vec)
+
+        # vector.apply takes compare_pd function as the first argument
+        distance_map = vector.apply(compare_pd, axis=1)
+        num_of_neighbors = 10
+        nearest_neighbors = distance_map.sort_values()[1:(num_of_neighbors + 1)].iloc[::-1]
+        max_len_of_yaxis_str = 20
+        products_titles = [str[0:min(max_len_of_yaxis_str, len(str))] for str in nearest_neighbors.index]
+        trace = go.Bar(
+            x=nearest_neighbors.values,
+            y=products_titles,
+            text=products_titles,
+            hovertext=nearest_neighbors.index,
+            width=0.5,
+            orientation="h",
+            marker=dict(color="rgb(50, 102, 193)"),
+        )
+        layout = go.Layout(
+            width=400,
+            title=f'{num_of_neighbors} nearest neighbors {selected_word}',
+            xaxis=dict(title="Euclidean Distance"),
+            barmode="overlay",
+            # yaxis=dict(title="Product"),
+            margin=go.layout.Margin(l=250, r=50, t=35, b=35),
+        )
+        fig = go.Figure(data=[trace], layout=layout)
+        return dcc.Graph(
+            id="graph-bar-nearest-neighbors-word",
+            figure=fig,
+            style={"height": "25vh"},
+            config={"displayModeBar": False},
+        )
 
     @app.callback(
         Output("div-plot-click-message", "children"),
