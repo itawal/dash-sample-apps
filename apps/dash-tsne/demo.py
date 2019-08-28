@@ -22,14 +22,14 @@ DATA_PATH = PATH.joinpath("data").resolve()
 data_dict = {
     "mnist_3000": pd.read_csv(DATA_PATH.joinpath("mnist_3000_input.csv")),
     "wikipedia_3000": pd.read_csv(DATA_PATH.joinpath("wikipedia_3000.csv")),
-    "twitter_3000": pd.read_csv(
-        DATA_PATH.joinpath("twitter_3000.csv"), encoding="ISO-8859-1"
+    "Citta_Design": pd.read_csv(
+        DATA_PATH.joinpath("Citta_Design.csv"), encoding="ISO-8859-1"
     ),
 }
 
 # Import datasets here for running the Local version
 IMAGE_DATASETS = "mnist_3000"
-WORD_EMBEDDINGS = ("wikipedia_3000", "twitter_3000")
+WORD_EMBEDDINGS = ("Citta_Design")
 
 
 with open(PATH.joinpath("demo_intro.md"), "r") as file:
@@ -165,20 +165,12 @@ def create_layout(app):
                                         clearable=False,
                                         options=[
                                             {
-                                                "label": "MNIST Digits",
-                                                "value": "mnist_3000",
-                                            },
-                                            {
-                                                "label": "Twitter (GloVe)",
-                                                "value": "twitter_3000",
-                                            },
-                                            {
-                                                "label": "Wikipedia (GloVe)",
-                                                "value": "wikipedia_3000",
+                                                "label": "Citta Design",
+                                                "value": "Citta_Design",
                                             },
                                         ],
                                         placeholder="Select a dataset",
-                                        value="wikipedia_3000",
+                                        value="Citta_Design",
                                     ),
                                     NamedInlineRadioItems(
                                         name="Popularity based size",
@@ -195,43 +187,20 @@ def create_layout(app):
                                         ],
                                         val="regular",
                                     ),
-                                    NamedSlider(
-                                        name="Number of Iterations",
-                                        short="iterations",
-                                        min=250,
-                                        max=1000,
-                                        step=None,
-                                        val=250,
-                                        marks={
-                                            i: str(i) for i in [250, 500, 750, 1000]
-                                        },
-                                    ),
-                                    NamedSlider(
-                                        name="Perplexity",
-                                        short="perplexity",
-                                        min=3,
-                                        max=100,
-                                        step=None,
-                                        val=3,
-                                        marks={i: str(i) for i in [3, 10, 30, 50, 100]},
-                                    ),
-                                    NamedSlider(
-                                        name="Initial PCA Dimensions",
-                                        short="pca-dimension",
-                                        min=25,
-                                        max=100,
-                                        step=None,
-                                        val=25,
-                                        marks={i: str(i) for i in [25, 50, 100]},
-                                    ),
-                                    NamedSlider(
-                                        name="Learning Rate",
-                                        short="learning-rate",
-                                        min=10,
-                                        max=200,
-                                        step=None,
-                                        val=10,
-                                        marks={i: str(i) for i in [10, 50, 100, 200]},
+                                    NamedInlineRadioItems(
+                                        name="Dimension reduction method",
+                                        short="dimredc-method-mode",
+                                        options=[
+                                            {
+                                                "label": " ISO map",
+                                                "value": "iso",
+                                            },
+                                            {
+                                                "label": " tSNE",
+                                                "value": "tsne",
+                                            },
+                                        ],
+                                        val="iso",
                                     ),
                                     html.Div(
                                         id="div-wordemb-controls",
@@ -246,18 +215,30 @@ def create_layout(app):
                                                         "value": "regular",
                                                     },
                                                     {
-                                                        "label": " Top-100 Neighbors",
-                                                        "value": "neighbors",
+                                                        "label": " Top Neighbors",
+                                                        "value": "neighbors_mode",
                                                     },
                                                 ],
                                                 val="regular",
                                             ),
                                             dcc.Dropdown(
                                                 id="dropdown-word-selected",
-                                                placeholder="Select word to display its neighbors",
+                                                placeholder="Select an item to display its neighbors",
                                                 style={"background-color": "#f2f3f4"},
                                             ),
+                                            NamedSlider(
+                                                name="Number of Neighbors",
+                                                short="neighbours_num",
+                                                min=5,
+                                                max=50,
+                                                step=None,
+                                                val=5,
+                                                marks={
+                                                    i: str(i) for i in [i for i in (range(5,51,5))]
+                                                },
+                                            ),
                                         ],
+
                                     ),
                                 ]
                             )
@@ -319,7 +300,7 @@ def demo_callbacks(app):
 
     # Scatter Plot of the t-SNE datasets
     def generate_figure_word_vec(
-        embedding_df, layout, wordemb_display_mode, popsize_display_mode, selected_word, dataset
+        embedding_df, layout, wordemb_display_mode, popsize_display_mode, selected_word, neighbours_num, dataset
     ):
 
         try:
@@ -331,23 +312,25 @@ def demo_callbacks(app):
                 plot_mode = "markers"
 
 
-            # Nearest Neighbors displays only the 200 nearest neighbors of the selected_word, in text rather than circles
-            elif wordemb_display_mode == "neighbors":
+            # Nearest Neighbors displays only the K nearest neighbors of the selected_word, in text rather than circles
+            elif wordemb_display_mode == "neighbors_mode":
                 if not selected_word:
                     return go.Figure()
 
-                plot_mode = "text"
+                plot_mode = "text+markers"
 
                 # Get the nearest neighbors indices using Euclidean distance
                 vector = data_dict[dataset].set_index("0")
                 selected_vec = vector.loc[selected_word]
+                if isinstance(selected_vec, pd.core.frame.DataFrame):
+                    selected_vec= selected_vec.iloc[0,:]
 
                 def compare_pd(vector):
                     return spatial_distance.euclidean(vector, selected_vec)
 
                 # vector.apply takes compare_pd function as the first argument
                 distance_map = vector.apply(compare_pd, axis=1)
-                neighbors_idx = distance_map.sort_values()[:50].index
+                neighbors_idx = distance_map.sort_values()[:neighbours_num].index
 
                 # Select those neighbors from the embedding_df
                 embedding_df = embedding_df.loc[neighbors_idx]
@@ -419,7 +402,7 @@ def demo_callbacks(app):
         [Input("radio-wordemb-display-mode", "value")],
     )
     def disable_word_selection(mode):
-        return not mode == "neighbors"
+        return not mode == "neighbors_mode"
 
     @app.callback(
         Output("dropdown-word-selected", "options"),
@@ -437,37 +420,30 @@ def demo_callbacks(app):
         Output("graph-3d-plot-tsne", "figure"),
         [
             Input("dropdown-dataset", "value"),
-            Input("slider-iterations", "value"),
-            Input("slider-perplexity", "value"),
-            Input("slider-pca-dimension", "value"),
-            Input("slider-learning-rate", "value"),
+            Input("radio-popsize-display-mode", "value"),
+            Input("radio-dimredc-method-mode", "value"),
             Input("dropdown-word-selected", "value"),
             Input("radio-wordemb-display-mode", "value"),
-            Input("radio-popsize-display-mode", "value")
+            Input("slider-neighbours_num", "value"),
         ],
     )
     def display_3d_scatter_plot(
         dataset,
-        iterations,
-        perplexity,
-        pca_dim,
-        learning_rate,
+        popsize_display_mode,
+        method,
         selected_word,
         wordemb_display_mode,
-        popsize_display_mode
+        neighbours_num
     ):
         if dataset:
-            path = f"demo_embeddings/{dataset}/iterations_{iterations}/perplexity_{perplexity}/pca_{pca_dim}/learning_rate_{learning_rate}"
+            path = f"demo_embeddings/{dataset}/method_{method}/"
 
             try:
 
                 data_url = [
                     "demo_embeddings",
                     str(dataset),
-                    "iterations_" + str(iterations),
-                    "perplexity_" + str(perplexity),
-                    "pca_" + str(pca_dim),
-                    "learning_rate_" + str(learning_rate),
+                    "method_" + method,
                     "data.csv",
                 ]
                 full_path = PATH.joinpath(*data_url)
@@ -505,6 +481,7 @@ def demo_callbacks(app):
                     wordemb_display_mode=wordemb_display_mode,
                     popsize_display_mode= popsize_display_mode,
                     selected_word=selected_word,
+                    neighbours_num= neighbours_num,
                     dataset=dataset,
                 )
 
@@ -518,14 +495,10 @@ def demo_callbacks(app):
         [
             Input("graph-3d-plot-tsne", "clickData"),
             Input("dropdown-dataset", "value"),
-            Input("slider-iterations", "value"),
-            Input("slider-perplexity", "value"),
-            Input("slider-pca-dimension", "value"),
-            Input("slider-learning-rate", "value"),
         ],
     )
     def display_click_image(
-        clickData, dataset, iterations, perplexity, pca_dim, learning_rate
+        clickData, dataset
     ):
         if dataset in WORD_EMBEDDINGS and clickData:
             selected_word = clickData["points"][0]["hovertext"]
@@ -567,12 +540,15 @@ def demo_callbacks(app):
 
                 # vector.apply takes compare_pd function as the first argument
                 distance_map = vector.apply(compare_pd, axis=1)
-                nearest_neighbors = distance_map.sort_values()[1:11].iloc[::-1]
-                products_titles = [str[0:min(20, len(str))] for str in nearest_neighbors.index]
+                num_of_neighbors = 10
+                nearest_neighbors = distance_map.sort_values()[1:(num_of_neighbors + 1)].iloc[::-1]
+                max_len_of_yaxis_str= 20
+                products_titles = [str[0:min(max_len_of_yaxis_str, len(str))] for str in nearest_neighbors.index]
 
                 trace = go.Bar(
                     x=nearest_neighbors.values,
                     y=products_titles,
+                    text= products_titles,
                     hovertext=nearest_neighbors.index,
                     width=0.5,
                     orientation="h",
@@ -581,7 +557,7 @@ def demo_callbacks(app):
 
                 layout = go.Layout(
                     width=400,
-                    title=f'20 nearest neighbors {selected_word}',
+                    title=f'{num_of_neighbors} nearest neighbors {selected_word}',
                     xaxis=dict(title="Euclidean Distance"),
                     barmode="overlay",
                     #yaxis=dict(title="Product"),
