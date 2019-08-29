@@ -272,7 +272,7 @@ def create_layout(app):
                                     #     ]
                                     # ),
                                     html.Div(id="div-plot-click-title"),
-                                    html.Img(src= '/images/Citta_Design/itai.png'),
+                                    html.Img(src= 'assets/images/Citta_Design/itai.png'),
                                     html.Div(id="div-plot-click-wordemb"),
                                 ],
                             )
