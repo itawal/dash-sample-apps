@@ -116,7 +116,7 @@ def create_layout(app):
                     html.Div(
                         [
                             html.Img(
-                                src=app.get_asset_url("dash-logo.png"),
+                                src='/assets/dash-logo.png',#app.get_asset_url("dash-logo.png"),
                                 className="logo",
                                 id="plotly-image",
                             )
@@ -265,17 +265,14 @@ def create_layout(app):
                                             "font-weight": "bold",
                                         },
                                     ),
-                                    html.Div(
-                                        [
-                                        html.Div(id="div-plot-click-title"),
-                                            html.Img(
-                                                src=app.get_asset_url("dash-logo.png"),
-                                                className="logo",
-                                                id="xxx",
-                                            )
-
-                                        ]
-                                    ),
+                                    # html.Div(
+                                    #     [
+                                    #     html.Div(id="div-plot-click-title"),
+                                    #         html.Img(id='image')
+                                    #     ]
+                                    # ),
+                                    html.Div(id="div-plot-click-title"),
+                                    html.Img(src= '/images/Citta_Design/itai.png'),
                                     html.Div(id="div-plot-click-wordemb"),
                                 ],
                             )
@@ -286,20 +283,21 @@ def create_layout(app):
         ],
     )
 
-def get_image_url(self, dataset, path):
+
+def get_image_url(dataset= "Citta_design", item= "domain_logo"):
     data_url = [
         "images",
         str(dataset),
-        path,
+        item,
+        ".png"
     ]
     full_path = PATH.joinpath(*data_url)
-    return full_path
+    return str(full_path)
 
 
 def demo_callbacks(app):
     def generate_figure_image(groups, layout):
         data = []
-
         for idx, val in groups:
             scatter = go.Scatter3d(
                 name=idx,
@@ -312,9 +310,7 @@ def demo_callbacks(app):
                 marker=dict(size=3, symbol="circle"),
             )
             data.append(scatter)
-
         figure = go.Figure(data=data, layout=layout)
-
         return figure
 
     # Scatter Plot of the t-SNE datasets
@@ -374,6 +370,14 @@ def demo_callbacks(app):
             print(selected_word)
             print(error)
             raise PreventUpdate
+
+    # @app.callback(
+    #     Output('image', 'src'),
+    #     [Input('selected-word', 'value')],
+    # )
+    # def update_image_src(value= "doamin-logo"):
+    #     #value= "domin-logo - Copy.png"
+    #     return str(PATH) + "image\\" + str(value) + ".png"
 
     # Callback function for the learn-more button
     @app.callback(
@@ -547,45 +551,68 @@ def demo_callbacks(app):
                 raise PreventUpdate
         return None
 
-#redundant - should be mergred into one function with display_click_title, couldn;t figure out how to output two outputs
     # @app.callback(
-    #         Output("div-plot-click-image", "children"),
+    #     Output("div-plot-click-image", "children"),
     #     [
     #         Input("graph-3d-plot-tsne", "clickData"),
     #         Input("dropdown-dataset", "value"),
-    #     ]
+    #     ],
     # )
     # def display_click_image(
     #     clickData, dataset
     # ):
     #     if dataset in WORD_EMBEDDINGS and clickData:
-    #         selected_word = clickData["points"][0]["hovertext"]
+    #         # Load the same dataset as the one displayed
     #
     #         try:
-    #             # Get the nearest neighbors indices using Euclidean distance
-    #             vector = data_dict[dataset].set_index("0")
-    #             selected_vec = vector.loc[selected_word]
-    #             # very ugly workaround - just until we will have unique product Id
-    #             if isinstance(selected_vec, pd.core.frame.DataFrame):
-    #                 selected_vec= selected_vec.iloc[0,:]
-    #             ###
-    #             path = f"images/{dataset}/"
-    #
+    #             selected_word = clickData["points"][0]["hovertext"]
+    #             selected_word = "domin-logo"
     #             data_url = [
     #                 "images",
     #                 str(dataset),
-    #                 "citta-logo.png",
+    #                 f"{selected_word}.png",
     #             ]
+    #
     #             full_path = PATH.joinpath(*data_url)
     #             return html.Img(
-    #                         src=full_path ,
-    #                         style={"height": "25vh", "display": "block", "margin": "auto"},
+    #                 src=full_path#,
+    #                 #style={"height": "25vh", "display": "block", "margin": "auto"},
     #             )
     #
-    #         except KeyError as error:
-    #             raise PreventUpdate
-    #     return None
+    #         except FileNotFoundError as error:
+    #             print(
+    #                 error,
+    #                 "\nThe dataset was not found. Please generate it using generate_demo_embeddings.py",
+    #             )
+    #             return
 
+            # # Convert the point clicked into float64 numpy array
+            # click_point_np = np.array(
+            #     [clickData["points"][0][i] for i in ["x", "y", "z"]]
+            # ).astype(np.float64)
+            # # Create a boolean mask of the point clicked, truth value exists at only one row
+            # bool_mask_click = (
+            #     embedding_df.loc[:, "x":"z"].eq(click_point_np).all(axis=1)
+            # )
+            # # Retrieve the index of the point clicked, given it is present in the set
+            # if bool_mask_click.any():
+            #     clicked_idx = embedding_df[bool_mask_click].index[0]
+            #
+            #     # Retrieve the image corresponding to the index
+            #     image_vector = data_dict[dataset].iloc[clicked_idx]
+            #     if dataset == "cifar_gray_3000":
+            #         image_np = image_vector.values.reshape(32, 32).astype(np.float64)
+            #     else:
+            #         image_np = image_vector.values.reshape(28, 28).astype(np.float64)
+            #
+            #     # Encode image into base 64
+            #     image_b64 = numpy_to_b64(image_np)
+            #
+            #     return html.Img(
+            #         src="data:image/png;base64, " + image_b64,
+            #         style={"height": "25vh", "display": "block", "margin": "auto"},
+            #     )
+        return None
 
     @app.callback(
         Output("div-plot-click-wordemb", "children"),
@@ -596,10 +623,10 @@ def demo_callbacks(app):
             selected_word = clickData["points"][0]["hovertext"]
 
             try:
-                return display_click_word_neighbours_with_word(dataset, selected_word)
+                return display_click_word_neighbours_with_word(dataset, selected_word)#, selected_word
             except KeyError as error:
                 raise PreventUpdate
-        return None
+        return None#, None
 
     def display_click_word_neighbours_with_word(dataset, selected_word):
         # Get the nearest neighbors indices using Euclidean distance
