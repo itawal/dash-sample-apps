@@ -14,6 +14,7 @@ from dash.exceptions import PreventUpdate
 import pandas as pd
 import plotly.graph_objs as go
 import scipy.spatial.distance as spatial_distance
+import os.path
 
 # get relative data folder
 PATH = pathlib.Path(__file__).parent
@@ -255,6 +256,9 @@ def create_layout(app):
                         id="euclidean-distance",
                         children=[
                             Card(
+                                text= "center",
+                                #lass= "aligncenter",
+                                oop= "oop",
                                 style={"padding": "5px"},
                                 children=[
                                     html.Div(
@@ -265,14 +269,8 @@ def create_layout(app):
                                             "font-weight": "bold",
                                         },
                                     ),
-                                    # html.Div(
-                                    #     [
-                                    #     html.Div(id="div-plot-click-title"),
-                                    #         html.Img(id='image')
-                                    #     ]
-                                    # ),
                                     html.Div(id="div-plot-click-title"),
-                                    html.Img(src= 'assets/images/Citta_Design/itai.png'),
+                                    html.Div(id="div-plot-click-image"),
                                     html.Div(id="div-plot-click-wordemb"),
                                 ],
                             )
@@ -325,6 +323,7 @@ def demo_callbacks(app):
             # Regular displays the full scatter plot with only circles
             if wordemb_display_mode == "regular":
                 plot_mode = "markers"
+                annotations= []
 
 
             # Nearest Neighbors displays only the K nearest neighbors of the selected_word, in text rather than circles
@@ -348,6 +347,21 @@ def demo_callbacks(app):
 
                 # Select those neighbors from the embedding_df
                 embedding_df = embedding_df.loc[neighbors_idx]
+                annotations= [dict(
+                        showarrow=True,
+                        # the location of the seed item
+                        x=embedding_df.iloc[0,0],
+                        y=embedding_df.iloc[0,1],
+                        z=embedding_df.iloc[0,2],
+                        text="Seed",
+                        xanchor="left",
+                        xshift=15,
+                        bgcolor= "black",
+                        font=dict(
+                            color="white",
+                            size=12
+                        )
+                    )]
 
 
             scatter = [go.Scatter3d(
@@ -355,7 +369,13 @@ def demo_callbacks(app):
                 x=embedding_df[embedding_df["category"] == i]["x"],
                 y=embedding_df[embedding_df["category"] == i]["y"],
                 z=embedding_df[embedding_df["category"] == i]["z"],
-                text=[str[0:min(20, len(str))] for str in embedding_df[embedding_df["category"] == i].index], #embedding_df.index,#
+                text=[str[0:min(20, len(str))] for str in embedding_df[embedding_df["category"] == i].index],
+                textfont=dict(
+                            color="black",
+                            size=20,
+                            family='Courier New, monospace'
+                        ),
+                #embedding_df.index,#
                 hovertext= embedding_df[embedding_df["category"] == i].index,
                 textposition="middle center",
                 showlegend=True,
@@ -365,21 +385,29 @@ def demo_callbacks(app):
 
             figure = go.Figure(data= scatter, layout=layout)
 
+            figure.update_layout(
+                font=dict(size= 12),
+                scene=go.layout.Scene(
+                    aspectratio=dict(
+                        x=1,
+                        y=1,
+                        z=1
+                    ),
+                    dragmode="turntable",
+                    annotations= annotations
+                ),
+                xaxis=dict(title_text="x"),
+                yaxis=dict(title_text="y")
+            )
+            # figure.add_trace(go.Scattergeo(
+            #
+            # )
             return figure
         except KeyError as error:
             print(selected_word)
             print(error)
             raise PreventUpdate
 
-    # @app.callback(
-    #     Output('image', 'src'),
-    #     [Input('selected-word', 'value')],
-    # )
-    # def update_image_src(value= "doamin-logo"):
-    #     #value= "domin-logo - Copy.png"
-    #     return str(PATH) + "image\\" + str(value) + ".png"
-
-    # Callback function for the learn-more button
     @app.callback(
         [
             Output("description-text", "children"),
@@ -421,6 +449,13 @@ def demo_callbacks(app):
 
     @app.callback(
         Output("dropdown-word-selected", "disabled"),
+        [Input("radio-wordemb-display-mode", "value")],
+    )
+    def disable_word_selection(mode):
+        return not mode == "neighbors_mode"
+
+    @app.callback(
+        Output("slider-neighbours_num", "disabled"),
         [Input("radio-wordemb-display-mode", "value")],
     )
     def disable_word_selection(mode):
@@ -485,18 +520,11 @@ def demo_callbacks(app):
 
             layout = go.Layout(
                 margin=dict(l=0, r=0, b=0, t=0),
-                scene=dict(xaxis=axes, yaxis=axes, zaxis=axes),
+                scene=dict(xaxis=axes, yaxis=axes, zaxis=axes)
             )
 
-            # For Image datasets
-            if dataset in IMAGE_DATASETS:
-                embedding_df["label"] = embedding_df.index
-
-                groups = embedding_df.groupby("label")
-                figure = generate_figure_image(groups, layout)
-
-            # Everything else is word embeddings
-            elif dataset in WORD_EMBEDDINGS:
+            # Everything is word embeddings
+            if dataset in WORD_EMBEDDINGS:
                 figure = generate_figure_word_vec(
                     embedding_df=embedding_df,
                     layout=layout,
@@ -513,7 +541,10 @@ def demo_callbacks(app):
             return figure
 
     @app.callback(
+        [
             Output("div-plot-click-title", "children"),
+            Output("div-plot-click-image", "children")
+        ],
         [
             Input("graph-3d-plot-tsne", "clickData"),
             Input("dropdown-dataset", "value"),
@@ -532,87 +563,33 @@ def demo_callbacks(app):
                 # very ugly workaround - just until we will have unique product Id
                 if isinstance(selected_vec, pd.core.frame.DataFrame):
                     selected_vec= selected_vec.iloc[0,:]
-                ###
-                path = f"images/{dataset}/"
 
                 data_url = [
+                    "assets",
                     "images",
                     str(dataset),
-                    "citta-logo.png",
+                    f"{selected_word}.png",
                 ]
                 full_path = PATH.joinpath(*data_url)
+                if not os.path.isfile(full_path):
+                    data_url = [
+                        "assets",
+                        "images",
+                        str(dataset),
+                        "domain-logo.png",
+                    ]
+                    full_path = PATH.joinpath(*data_url)
+                    start_path = 8
+                    end_path = 12
                 return html.H4(
                                 selected_word,
                                 className="header_title",
                                 id="app-title",
-                        )
-
+                        ), \
+                        html.Img(src="/".join(str(full_path).split("\\")[start_path:end_path]))
             except KeyError as error:
                 raise PreventUpdate
-        return None
-
-    # @app.callback(
-    #     Output("div-plot-click-image", "children"),
-    #     [
-    #         Input("graph-3d-plot-tsne", "clickData"),
-    #         Input("dropdown-dataset", "value"),
-    #     ],
-    # )
-    # def display_click_image(
-    #     clickData, dataset
-    # ):
-    #     if dataset in WORD_EMBEDDINGS and clickData:
-    #         # Load the same dataset as the one displayed
-    #
-    #         try:
-    #             selected_word = clickData["points"][0]["hovertext"]
-    #             selected_word = "domin-logo"
-    #             data_url = [
-    #                 "images",
-    #                 str(dataset),
-    #                 f"{selected_word}.png",
-    #             ]
-    #
-    #             full_path = PATH.joinpath(*data_url)
-    #             return html.Img(
-    #                 src=full_path#,
-    #                 #style={"height": "25vh", "display": "block", "margin": "auto"},
-    #             )
-    #
-    #         except FileNotFoundError as error:
-    #             print(
-    #                 error,
-    #                 "\nThe dataset was not found. Please generate it using generate_demo_embeddings.py",
-    #             )
-    #             return
-
-            # # Convert the point clicked into float64 numpy array
-            # click_point_np = np.array(
-            #     [clickData["points"][0][i] for i in ["x", "y", "z"]]
-            # ).astype(np.float64)
-            # # Create a boolean mask of the point clicked, truth value exists at only one row
-            # bool_mask_click = (
-            #     embedding_df.loc[:, "x":"z"].eq(click_point_np).all(axis=1)
-            # )
-            # # Retrieve the index of the point clicked, given it is present in the set
-            # if bool_mask_click.any():
-            #     clicked_idx = embedding_df[bool_mask_click].index[0]
-            #
-            #     # Retrieve the image corresponding to the index
-            #     image_vector = data_dict[dataset].iloc[clicked_idx]
-            #     if dataset == "cifar_gray_3000":
-            #         image_np = image_vector.values.reshape(32, 32).astype(np.float64)
-            #     else:
-            #         image_np = image_vector.values.reshape(28, 28).astype(np.float64)
-            #
-            #     # Encode image into base 64
-            #     image_b64 = numpy_to_b64(image_np)
-            #
-            #     return html.Img(
-            #         src="data:image/png;base64, " + image_b64,
-            #         style={"height": "25vh", "display": "block", "margin": "auto"},
-            #     )
-        return None
+        return None, None
 
     @app.callback(
         Output("div-plot-click-wordemb", "children"),
